@@ -4,29 +4,26 @@
   Import lib, connect to AirSim simulation, initalize/take off drones
   Specify Vector3r coords path for lead drone in 'thread1'.
   In Main:
-    Start thread1   
+    Start thread1:
+      Lead drone will be updated by other thread, just need to save new coords in array.
     Game Loop:
       Set inital parameters
-      Lead drone will be updated by other thread, just need to save new coords in array.
       Calculate Chase drone new coords using methods (given coords of lead, or velocity estimation, or ??)
       Move Chase drone, save new coords in array. 
       Once loop iterates for x times, break
 
       Use helper function 'calculate' to run analytics on chaser drone following abilities. 
       Disarm Drones, and turn off API connection
+
+given xl vl and some offset vector p ... follow
 '''
 
 # TODO: 
-''' write up how time works in the while loop (.join())
-    given xl vl and some offset vector p
-
-    √ Save data within python, pickle???
-    moveToPath for lead drone -- with multithreading
-    velocity control for the chaser drone (PID?)
-    Draw a block diagram, write down how time works. Make the code starting to match the block diagram for code execution
-    √ Can we decouple while loop. Ex. Lead and Chaser running with different while loops -> Used multithreading. 
-    √ Control how much time each module runs. ->  Used a timeout time for moveToPath
-    √ Architect the simulation loop. 
+''' 
+    √ Fix threading to allow for lead drone to moveOnPathAsync outside of main while loop
+    √ Increase route size and make it more defined
+    Velocity control for the chaser drone (PID?)
+    
 
 '''
 
@@ -47,6 +44,7 @@ import threading
 # Copy over files from algo folder
 # from gen_traj import Generate
 # from perception import Perception
+
 lead = "Drone_L"
 chase = "Drone_C"
 
@@ -58,34 +56,28 @@ curr_state = client.simGetVehiclePose(lead) # print("lead state", curr_state)
 # Initalize Lead and Chaser Drones
 client.enableApiControl(True,lead)
 client.armDisarm(True, lead)
-client.takeoffAsync(10, lead).join()
+client.takeoffAsync(3, lead).join()
 
 client.enableApiControl(True,chase)
 client.armDisarm(True, chase)
-client.takeoffAsync(10, chase).join()
+client.takeoffAsync(3, chase).join()
 
 
-def calculations(lead, chase):
-  data=[lead,chase]
 
+
+
+def calculations(leadA, chaseA):
+  data=[leadA,chaseA]
   timestamp = int(time.time())
-  filename = f"pickle/data_{timestamp}.pickle"
-  
+  filename = f"data_{timestamp}.pickle"
   # Open the file in binary write mode
   with open(filename, "wb") as f:
     pickle.dump(data, f) # Pickle the data (list containing arrays)
-
-  lead = np.array(lead[0:len(lead)-1])
-  chase = np.array(chase[1:])
+  leadA = np.array(leadA[0:len(leadA)-1])
+  chaseA = np.array(chaseA[1:])
   
-  lead_x, lead_y, lead_z = np.transpose(lead)
-  chase_x, chase_y, chase_z = np.transpose(chase)
-
-  ### LEAD VS CHASE XYZ COORD
-  # percent_error_x = np.mean((np.abs(lead_x - chase_x) / np.abs(lead_x)) * 100)
-  # percent_error_y = np.mean((np.abs(lead_y - chase_y) / np.abs(lead_y)) * 100)
-  # percent_error_z = np.mean((np.abs(lead_z - chase_z) / np.abs(lead_z)) * 100)
-
+  lead_x, lead_y, lead_z = np.transpose(leadA)
+  chase_x, chase_y, chase_z = np.transpose(chaseA)
 
   percent_error_x = np.mean((np.abs(np.mean(lead_x) - np.mean(chase_x)) / np.mean(np.abs(lead_x))) * 100)
   percent_error_y = np.mean((np.abs(np.mean(lead_y) - np.mean(chase_y)) / np.mean(np.abs(lead_y))) * 100)
@@ -141,95 +133,82 @@ def calculations(lead, chase):
   axes[2].grid(True)
   plt.tight_layout()
   plt.show()
-
   return percent_error 
 
 
+def task1(client):
+    clientL.enableApiControl(True,chase)
+    for i in range(1):
+      z=33
+      # Small Short Figure 8 ish path
+      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,30,z), airsim.Vector3r(0,-15,z),
+      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(10,0,z), airsim.Vector3r(10,-5,z),
+      #                                   airsim.Vector3r(0,0,z)], 3, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
+      # Long Fast path
+      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,40,z), airsim.Vector3r(0,-40,z),
+      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(40,0,z), airsim.Vector3r(40,-5,z),
+      #                                   airsim.Vector3r(0,0,z)], 20, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
+
+      clientL.moveOnPathAsync([ airsim.Vector3r(10,0,z), airsim.Vector3r(-10,0,z), airsim.Vector3r(0,10,z),
+                                        airsim.Vector3r(0,-10,z)], 5, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), 1, 1, vehicle_name=lead)
+      client.moveByVelocityZAsync(0,0, z, 3, dt_move,vehicle_name=lead)
+      time.sleep(1)
 
 
 
-## Make waypoints instead of move on path
+# def chase_drone(client, lead_drone_name="lead"):
+   
 
-waypoints = [
-    airsim.Vector3r(120, 0, 5),  # Start point
-    airsim.Vector3r(120, -125, 5),  # Move right
-    airsim.Vector3r(0, -125, 5),  # Move up and right
-    airsim.Vector3r(0, 5, 5),  # Move up
-    airsim.Vector3r(0, 0, 5),  # Move back to start point (completes rectangle)
-]
-path_velocity = airsim.Vector3r(2, 2, 0) 
+
 
 # Initialize empty arrays to store positions
 lead_positions = []
 chase_positions = []
-# Game loop
 count = 0
 
-z=33
-result = client.moveOnPathAsync([airsim.Vector3r(0,0,z),
-                                airsim.Vector3r(0,15,z),
-                                airsim.Vector3r(0,-15,z),
-                                airsim.Vector3r(0,0,z),
-                                airsim.Vector3r(10,0,z),
-                                airsim.Vector3r(10,-5,z),
-                                airsim.Vector3r(0,0,z)
 
-                                # airsim.Vector3r(0,-10,z),
-                                # airsim.Vector3r(0,0,z),
-                                # ], 1, 5, vehicle_name=lead)
-
-                                ], 3, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), 20, 1, vehicle_name=lead)
-
-
-
-
-
-
-while True:
+if __name__ == "__main__":
+  clientL = airsim.MultirotorClient() 
+  thread1 = threading.Thread(target=task1, args=(clientL,))    # thread2 = threading.Thread(target=task2)
+  thread1.start()
+  # Game loop
+  while True:
     dt_move = .1
     vel=3
-    # x,y,z = xyz([100,10,10],count)
-
-    # client.moveToPositionAsync(x, y, curr_state.position.z_val, vel, vehicle_name=lead)
-    # client.moveToPositionAsync(x, y, curr_state.position.z_val, vel, vehicle_name=lead)
-
     # identify and store location of lead
     lead_pose = [client.simGetVehiclePose(lead).position.x_val,
-                 client.simGetVehiclePose(lead).position.y_val,
-                 client.simGetVehiclePose(lead).position.z_val]    # print("Lead position",lead_pose)
+                client.simGetVehiclePose(lead).position.y_val,
+                client.simGetVehiclePose(lead).position.z_val] # print("Lead position",lead_pose)
     lead_positions.append(lead_pose)
 
     client.moveToPositionAsync(lead_pose[0], lead_pose[1], lead_pose[2], vel, vehicle_name=chase)
     # identify and store location of chase
     curr_pose_chase = [client.simGetVehiclePose(chase).position.x_val,
-                       client.simGetVehiclePose(chase).position.y_val,
-                       client.simGetVehiclePose(chase).position.z_val]
+                      client.simGetVehiclePose(chase).position.y_val,
+                      client.simGetVehiclePose(chase).position.z_val]
     chase_positions.append(curr_pose_chase)
-    # curr_pose_rel = [lead_pose[0]-curr_pose_chase[0], lead_pose[1]-curr_pose_chase[1], lead_pose[2]-curr_pose_chase[2]]
-    # print("relative pose",curr_pose_rel)
-
-    # Move chase drone by velocity
-    # k=10
-    # vx = k * (lead_pose[0]-curr_pose_chase[0])
-    # vy = k * (lead_pose[1]-curr_pose_chase[1])
-    # client.moveByVelocityZAsync(vx, vy, client.simGetVehiclePose(chase).position.z_val, 5, dt_move,vehicle_name=chase)
-      # client.moveByVelocityZAsync(vx, vy, curr_pose_chase[2], 1, airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False, 0), vehicle_name=chase).join()
     count += 1
-
     time.sleep(.1)
-    if count == 100:
+    if count == 200:
         break
+    
+  print("Finished")
+  # ret=calculations(lead_positions, chase_positions)
+  # print(ret)
+  time.sleep(10)
+  client.armDisarm(False)
+  client.enableApiControl(False)
 
-print("Finished")
-ret=calculations(lead_positions, chase_positions)
-print(ret)
-time.sleep(10)
-client.armDisarm(False)
-client.enableApiControl(False)
+
+
+
+
 
 
 
 #### XXX: Addendum::
+
+'''
 # if __name__ == "__main__":
 #   import matplotlib.pyplot as plt
 #   from mpl_toolkits.mplot3d import Axes3D
@@ -262,22 +241,18 @@ client.enableApiControl(False)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
 
+## Make waypoints instead of move on path
+
+waypoints = [
+    airsim.Vector3r(120, 0, 5),  # Start point
+    airsim.Vector3r(120, -125, 5),  # Move right
+    airsim.Vector3r(0, -125, 5),  # Move up and right
+    airsim.Vector3r(0, 5, 5),  # Move up
+    airsim.Vector3r(0, 0, 5),  # Move back to start point (completes rectangle)
+]
+path_velocity = airsim.Vector3r(2, 2, 0) 
 
 
-'''
-  Import lib, connect to AirSim simulation, initalize/take off drones
-  Game Loop:
-    Set inital parameters, obtain updated coords of lead drone using helper fxn 'xyz'
-    Move Lead drone, save new coords in array.
-    Calculate Chase drone new coords using methods (given coords of lead, or velocity estimation, or ??)
-    Move Chase drone, save new coords in array. 
-    Once loop iterates for x times, break
-    Disarm Drones, and turn off API connection
-'''
-
-
-
-'''
 # Lead Drone Movement in Figure 8
 def xyz(args, real_t):
   period, sizex, sizey = args
@@ -298,4 +273,65 @@ def xyz(args, real_t):
 ''' XXX: Design choices:
     Either make large array of waypoints and duplicate paths, or use multithreading to iterate through waypoints repeatedly 
 
+
+   XXX: Old overview  
+   Import lib, connect to AirSim simulation, initalize/take off drones
+   Game Loop:
+    Set inital parameters, obtain updated coords of lead drone using helper fxn 'xyz'
+    Move Lead drone, save new coords in array.
+    Calculate Chase drone new coords using methods (given coords of lead, or velocity estimation, or ??)
+    Move Chase drone, save new coords in array. 
+    Once loop iterates for x times, break
+    Disarm Drones, and turn off API connection
+    
+    '''
+
+
+''' XXX: Old game loop:
+
+while True:
+    dt_move = .1
+    vel=3
+    # x,y,z = xyz([100,10,10],count)
+ 
+    # client.moveToPositionAsync(x, y, curr_state.position.z_val, vel, vehicle_name=lead)
+    # client.moveToPositionAsync(x, y, curr_state.position.z_val, vel, vehicle_name=lead)
+
+    # identify and store location of lead
+    lead_pose = [client.simGetVehiclePose(lead).position.x_val,
+                 client.simGetVehiclePose(lead).position.y_val,
+                 client.simGetVehiclePose(lead).position.z_val] # print("Lead position",lead_pose)
+    lead_positions.append(lead_pose)
+
+    client.moveToPositionAsync(lead_pose[0], lead_pose[1], lead_pose[2], vel, vehicle_name=chase)
+    # identify and store location of chase
+    curr_pose_chase = [client.simGetVehiclePose(chase).position.x_val,
+                       client.simGetVehiclePose(chase).position.y_val,
+                       client.simGetVehiclePose(chase).position.z_val]
+    chase_positions.append(curr_pose_chase)
+    # curr_pose_rel = [lead_pose[0]-curr_pose_chase[0], lead_pose[1]-curr_pose_chase[1], lead_pose[2]-curr_pose_chase[2]]
+    # print("relative pose",curr_pose_rel)
+
+    # Move chase drone by velocity
+    # k=10
+    # vx = k * (lead_pose[0]-curr_pose_chase[0])
+    # vy = k * (lead_pose[1]-curr_pose_chase[1])
+    # client.moveByVelocityZAsync(vx, vy, client.simGetVehiclePose(chase).position.z_val, 5, dt_move,vehicle_name=chase)
+      # client.moveByVelocityZAsync(vx, vy, curr_pose_chase[2], 1, airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False, 0), vehicle_name=chase).join()
+    count += 1
+
+    time.sleep(.1)
+    if count == 100:
+        break
+
+print("Finished")
+ret=calculations(lead_positions, chase_positions)
+print(ret)
+time.sleep(10)
+client.armDisarm(False)
+client.enableApiControl(False)
+
+
+
 '''
+
