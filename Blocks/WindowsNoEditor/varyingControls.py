@@ -4,11 +4,11 @@
   Import lib, connect to AirSim simulation, initalize/take off drones
   Specify Vector3r coords path for lead drone in 'thread1'.
   In Main:
-    Start thread1:
-      Lead drone will be updated by other thread, just need to save new coords in array.
+    Start task1:
+      Lead drone Path will be set using this thread.
     Game Loop:
       Set inital parameters
-      Calculate Chase drone new coords using methods (given coords of lead, or velocity estimation, or ??)
+      Given: lead pos w/ noise, history of velocities ; Calculate Chase drone new coords using methods
       Move Chase drone, save new coords in array. 
       Once loop iterates for x times, break
 
@@ -40,7 +40,7 @@ import math
 import matplotlib.pyplot as plt
 import pickle
 import threading
-
+import random
 # Copy over files from algo folder
 # from gen_traj import Generate
 # from perception import Perception
@@ -61,8 +61,6 @@ client.takeoffAsync(3, lead).join()
 client.enableApiControl(True,chase)
 client.armDisarm(True, chase)
 client.takeoffAsync(3, chase).join()
-
-
 
 
 
@@ -140,53 +138,71 @@ def task1(client):
     clientL.enableApiControl(True,chase)
     for i in range(1):
       z=33
-      # Small Short Figure 8 ish path
-      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,30,z), airsim.Vector3r(0,-15,z),
-      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(10,0,z), airsim.Vector3r(10,-5,z),
-      #                                   airsim.Vector3r(0,0,z)], 3, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
-      # Long Fast path
-      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,40,z), airsim.Vector3r(0,-40,z),
-      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(40,0,z), airsim.Vector3r(40,-5,z),
-      #                                   airsim.Vector3r(0,0,z)], 20, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
-
       clientL.moveOnPathAsync([ airsim.Vector3r(10,0,z), airsim.Vector3r(-10,0,z), airsim.Vector3r(0,10,z),
                                         airsim.Vector3r(0,-10,z)], 5, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), 1, 1, vehicle_name=lead)
-      client.moveByVelocityZAsync(0,0, z, 3, dt_move,vehicle_name=lead)
       time.sleep(1)
 
 
-
-# def chase_drone(client, lead_drone_name="lead"):
-   
-
-
-
-# Initialize empty arrays to store positions
+# Initialize var 
 lead_positions = []
+lead_positions_actual = []
+
 chase_positions = []
 count = 0
-
+offset_x=5
+offset_y=5
+offset_z=5
+lead_velocity = []
+average_lead_velocity = [0,0,0]
 
 if __name__ == "__main__":
   clientL = airsim.MultirotorClient() 
   thread1 = threading.Thread(target=task1, args=(clientL,))    # thread2 = threading.Thread(target=task2)
   thread1.start()
   # Game loop
+  lead_pose= [client.simGetVehiclePose(lead).position.x_val,
+                client.simGetVehiclePose(lead).position.y_val,
+                client.simGetVehiclePose(lead).position.z_val]
+
   while True:
-    dt_move = .1
+    dt_move = .1 # time duration that the client will move by velocity derived in moveByVelocityZAsync 
     vel=3
     # identify and store location of lead
-    lead_pose = [client.simGetVehiclePose(lead).position.x_val,
+    lead_pose= [client.simGetVehiclePose(lead).position.x_val,
                 client.simGetVehiclePose(lead).position.y_val,
                 client.simGetVehiclePose(lead).position.z_val] # print("Lead position",lead_pose)
+    lead_positions_actual.append(lead_pose)
+    # ADD SOME NOISE TO THIS
+    # lead_pose = [val + random.gauss(0, 0.5) for val in lead_pose_OG]
     lead_positions.append(lead_pose)
 
-    client.moveToPositionAsync(lead_pose[0], lead_pose[1], lead_pose[2], vel, vehicle_name=chase)
+
+    # Move chaser using Ground truth location of lead drone:     # client.moveToPositionAsync(lead_pose[0], lead_pose[1], lead_pose[2], vel, vehicle_name=chase)
+    # Concatenate these better:                                  # desired_chase_position = airsim.Vector3r(lead_pose) + airsim.Vector3r(offset_x, offset_y, offset_z) # only used for z_val for now.
+
+    if len(lead_positions) > 5:
+      lead_velocity_est = [(lead_pose[0] - lead_positions[-2][0]) / 1,       # Estimate velocity of lead drone, to be used for calculating velocity that chase should have
+                           (lead_pose[1] - lead_positions[-2][1]) / 1,
+                           (lead_pose[2] - lead_positions[-2][2]) / 1]
+      lead_velocity.append(lead_velocity_est)  # Store velocity history, use this as part of chase_velocity
+
+    # This portion calculates the average of the past TWO? estimated velocities, and uses this to estimate velocity of chaser. 
+    # This will be replaced with the particle filter's outputted estimated velocity
+    if len(lead_velocity)>1:
+      for i in range(3):
+        sum=0
+        for v in lead_velocity:
+          sum+=v[i]
+        average_lead_velocity[i] = sum / len(v)
+          
+    client.moveByVelocityAsync(average_lead_velocity[0], average_lead_velocity[1], 0, 3, 1, vehicle_name=chase)
+
     # identify and store location of chase
     curr_pose_chase = [client.simGetVehiclePose(chase).position.x_val,
                       client.simGetVehiclePose(chase).position.y_val,
                       client.simGetVehiclePose(chase).position.z_val]
     chase_positions.append(curr_pose_chase)
+
     count += 1
     time.sleep(.1)
     if count == 200:
@@ -198,10 +214,6 @@ if __name__ == "__main__":
   time.sleep(10)
   client.armDisarm(False)
   client.enableApiControl(False)
-
-
-
-
 
 
 
@@ -331,6 +343,16 @@ time.sleep(10)
 client.armDisarm(False)
 client.enableApiControl(False)
 
+
+
+      # Small Short Figure 8 ish path
+      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,30,z), airsim.Vector3r(0,-15,z),
+      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(10,0,z), airsim.Vector3r(10,-5,z),
+      #                                   airsim.Vector3r(0,0,z)], 3, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
+      # Long Fast path
+      # clientL.moveOnPathAsync([ airsim.Vector3r(0,0,z), airsim.Vector3r(0,40,z), airsim.Vector3r(0,-40,z),
+      #                                   airsim.Vector3r(0,0,z),  airsim.Vector3r(40,0,z), airsim.Vector3r(40,-5,z),
+      #                                   airsim.Vector3r(0,0,z)], 20, 20 ,airsim.DrivetrainType.ForwardOnly, airsim.YawMode(False,0), -1, 1, vehicle_name=lead)
 
 
 '''
