@@ -1,0 +1,140 @@
+{
+	"SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/main/docs/settings.md",
+	"SettingsVersion": 1.2,
+	"SimMode": "Multirotor",
+	"ViewMode": "Manual",
+	"Recording":{
+	"Cameras":[
+		{"CameraName":"Camera_main", "ImageType": 0, "PixelsAsFloat": false,  "VehicleName": "Drone_C", "Compress": true}
+	]},
+	  "Vehicles": {
+	  "Drone_C": {
+		"VehicleType": "SimpleFlight",
+		"X": 5, "Y": 0, "Z": -35,
+		"Yaw": 0,
+		"Cameras": {
+		  "Camera_main": {
+			"CaptureSettings": [{
+		  "ImageType": 0,
+		  "Width": 256,
+		  "Height": 144,
+		  "FOV_Degrees": 100,
+		  "AutoExposureSpeed": 100,
+		  "AutoExposureBias": 0,
+		  "AutoExposureMaxBrightness": 0.64,
+		  "AutoExposureMinBrightness": 0.03,
+		  "MotionBlurAmount": 0,
+		  "TargetGamma": 1.0,
+		  "ProjectionMode": "",
+		  "OrthoWidth": 5.12
+				}],
+		  "NoiseSettings": [{
+		  "Enabled": false,
+		  "ImageType": 0,
+  
+		  "RandContrib": 0.2,
+		  "RandSpeed": 100000.0,
+		  "RandSize": 500.0,
+		  "RandDensity": 2,
+  
+		  "HorzWaveContrib":0.03,
+		  "HorzWaveStrength": 0.08,
+		  "HorzWaveVertSize": 1.0,
+		  "HorzWaveScreenSize": 1.0,
+  
+		  "HorzNoiseLinesContrib": 1.0,
+		  "HorzNoiseLinesDensityY": 0.01,
+		  "HorzNoiseLinesDensityXY": 0.5,
+  
+		  "HorzDistortionContrib": 1.0,
+		  "HorzDistortionStrength": 0.002
+			}],
+		  "Gimbal": {
+		  "Stabilization": 0,
+		  "Pitch": 0, "Roll": 0, "Yaw": 0
+		  },
+		  "X": 10, "Y": 0, "Z": -35,
+		  "Pitch": 0, "Roll": 0, "Yaw": 0
+		  },
+		   "Camera_stereo_left": {
+			"CaptureSettings": [{
+		  "ImageType": 4,
+		  "PixelsAsFloat": true,
+		  "Width": 256,
+		  "Height": 144,
+		  "FOV_Degrees": 90,
+		  "AutoExposureSpeed": 100,
+		  "AutoExposureBias": 0,
+		  "AutoExposureMaxBrightness": 0.64,
+		  "AutoExposureMinBrightness": 0.03,
+		  "MotionBlurAmount": 0,
+		  "TargetGamma": 1.0,
+		  "ProjectionMode": "",
+		  "OrthoWidth": 5.12
+				}],
+		  "NoiseSettings": [{
+		  "Enabled": false,
+		  "ImageType": 0,
+  
+		  "RandContrib": 0.2,
+		  "RandSpeed": 100000.0,
+		  "RandSize": 500.0,
+		  "RandDensity": 2,
+  
+		  "HorzWaveContrib":0.03,
+		  "HorzWaveStrength": 0.08,
+		  "HorzWaveVertSize": 1.0,
+		  "HorzWaveScreenSize": 1.0,
+  
+		  "HorzNoiseLinesContrib": 1.0,
+		  "HorzNoiseLinesDensityY": 0.01,
+		  "HorzNoiseLinesDensityXY": 0.5,
+  
+		  "HorzDistortionContrib": 1.0,
+		  "HorzDistortionStrength": 0.002
+			}],
+		  "Gimbal": {
+		  "Stabilization": 0,
+		  "Pitch": 0, "Roll": 0, "Yaw": 0
+		  },
+		  "X": 10, "Y": 0, "Z": -35,
+		  "Pitch": 0, "Roll": 0, "Yaw": 0
+		  },
+		   "Camera_segment": {
+			"CaptureSettings": [{
+		  "ImageType": 5,
+		  "Width": 256,
+		  "Height": 144,
+		  "FOV_Degrees": 90,
+		  "AutoExposureSpeed": 100,
+		  "AutoExposureBias": 0,
+		  "AutoExposureMaxBrightness": 0.64,
+		  "AutoExposureMinBrightness": 0.03,
+		  "MotionBlurAmount": 0,
+		  "TargetGamma": 1.0,
+		  "ProjectionMode": "",
+		  "OrthoWidth": 5.12
+				}],
+		  "X": 10, "Y": 0, "Z": -35,
+		  "Pitch": 0, "Roll": 0, "Yaw": 0
+		  }
+		}
+	  },
+	  
+	  "Drone_L": {
+		"VehicleType": "SimpleFlight",
+		"X": 10, "Y": 0, "Z": -35,
+		"Yaw": 0
+	  }
+	 
+  },
+	  "SubWindows": [
+	  {"WindowID": 0, "CameraName": "Camera_main", "ImageType": 0, "VehicleName": "Drone_C", "Visible": true, "External": false},
+	  {"WindowID": 1, "CameraName": "Camera_stereo_left", "ImageType": 4, "VehicleName": "Drone_C", "Visible": false, "External": false,"PixelsAsFloat": true}
+	  ],
+	  "SegmentationSettings": {
+	  "InitMethod": "None",
+	  "MeshNamingMethod": "",
+	  "OverrideExisting": true
+	  }
+  }
